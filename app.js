@@ -142,16 +142,22 @@ const tarjetas = () => D.deudas.filter(d => d.tipo === 'tarjeta');
 const plazos   = () => D.deudas.filter(d => d.tipo === 'plazo');
 
 /* ---------- Asistente ---------- */
-function asistir(txt, emo) {
-  D.asistente.unshift({ id: uid(), ts: Date.now(), txt, emo: emo || '🤖' });
-  D.asistente = D.asistente.slice(0, 60);
+function burbuja(txt, emo) {
   const b = $('#bubble');
   $('#bubbleTxt').textContent = txt;
   b.querySelector('.bubble-emo').textContent = emo || '🤖';
   b.classList.add('show');
   clearTimeout(b._tm);
-  b._tm = setTimeout(() => b.classList.remove('show'), 5500);
+  b._tm = setTimeout(() => b.classList.remove('show'), 6000);
 }
+function asistir(txt, emo) {
+  D.asistente.unshift({ id: uid(), ts: Date.now(), txt, emo: emo || '🤖' });
+  D.asistente = D.asistente.slice(0, 60);
+  guardar();
+  burbuja(txt, emo);
+}
+const nombre = () => (D.perfil.nombre || '').trim().split(' ')[0] || 'amigo';
+const pick = a => a[Math.floor(Math.random() * a.length)];
 function avisoUsoIngresos(ym) {
   const ing = ingresosMes(ym);
   if (!(ing > 0)) return '';
@@ -223,6 +229,23 @@ function gaugeHTML(ym) {
       '<div class="g-item"><span class="g-k">💳 Compras</span><span class="g-v mono" style="color:var(--gold)">' + fmt(compras) + '</span></div>' +
     '</div></section>';
 }
+function colsHTML(ym) {
+  const datos = [
+    { k: 'Ingresos', v: ingresosMes(ym), c: 'var(--green)' },
+    { k: 'Egresos', v: egresosMes(ym), c: 'var(--red)' },
+    { k: '💳 Compras', v: comprasTarjetaMes(ym), c: 'var(--gold)' }
+  ];
+  const max = Math.max(datos[0].v, datos[1].v, datos[2].v);
+  if (!(max > 0)) return '';
+  return '<div class="card"><div class="card-head"><span class="card-title">📊 Comparativa del mes</span></div>' +
+    '<div class="cols">' + datos.map(d => {
+      const hpx = Math.max(6, Math.round(d.v / max * 120));
+      return '<div class="col"><span class="col-val mono">' + fmt(d.v) + '</span>' +
+        '<div class="col-bar" style="height:' + hpx + 'px;background:' + d.c + '"></div>' +
+        '<span class="col-k">' + d.k + '</span></div>';
+    }).join('') + '</div>' +
+    '<p class="hint" style="text-align:center">Que la columna verde siempre le gane a la roja 💪</p></div>';
+}
 
 /* ============================================================
    VISTAS
@@ -251,6 +274,7 @@ function vInicio() {
     '</button></div>';
 
   h += gaugeHTML(mes);
+  h += colsHTML(mes);
 
   h += rol
     ? '<button class="pill" data-a="ir" data-v="rol">📄 Rol de ' + nombreMes(mes).split(' ')[0] + ' · líquido ' + fmt(liquidoRol(rol)) + '</button>'
@@ -545,10 +569,6 @@ function vConfig() {
 /* ---------- Render principal ---------- */
 function render() {
   $('#monthLabel').textContent = nombreMes(mes);
-  $('#hiName').textContent = D.perfil.nombre || 'Hola';
-  $('#avatar').textContent = (D.perfil.nombre || 'A').trim().charAt(0).toUpperCase();
-  const hora = new Date().getHours();
-  $('#hiText').textContent = hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches';
   const vistas = { inicio: vInicio, gastos: vGastos, rol: vRol, tarjeta: vTarjeta, deudas: vDeudas, asistente: vAsistente, config: vConfig };
   const v = $('#view');
   v.innerHTML = (vistas[vista] || vInicio)();
@@ -556,13 +576,23 @@ function render() {
 }
 function setVista(x) {
   vista = x;
-  $$('.d-item').forEach(t => t.classList.toggle('active', t.dataset.view === x));
-  cerrarDrawer();
+  const tabDe = { inicio: 'inicio', gastos: 'gastos', rol: 'rol', tarjeta: 'tarjeta', deudas: 'mas', asistente: 'mas', config: 'mas' };
+  $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabDe[x]));
+  cerrarSheet();
   render();
   window.scrollTo({ top: 0 });
 }
-function abrirDrawer() { $('#drawer').classList.add('open'); $('#drawerBk').classList.add('show'); }
-function cerrarDrawer() { $('#drawer').classList.remove('open'); $('#drawerBk').classList.remove('show'); }
+function sheetMas() {
+  abrirSheet(
+    '<h3 class="sheet-title">Más opciones</h3>' +
+    '<div class="mas-list">' +
+      '<button class="d-item" data-a="ir" data-v="deudas"><span>🏬</span>Deudas a plazos</button>' +
+      '<button class="d-item" data-a="ir" data-v="asistente"><span>🤖</span>Asistente</button>' +
+      '<button class="d-item" data-a="ir" data-v="config"><span>⚙️</span>Configuración</button>' +
+      '<button class="d-item" data-a="bloquear-app"><span>🔒</span>Bloquear app</button>' +
+    '</div>'
+  );
+}
 
 /* ---------- Bloqueo por PIN ---------- */
 function pintarDots() {
@@ -579,6 +609,8 @@ function tecla(k) {
       bloqueada = false; pinBuf = '';
       $('#lock').classList.add('hide');
       render();
+      const pf = fijosPendientes(mes).length;
+      burbuja('¡Hola, ' + nombre() + '! 👋 Tu saldo en Bancos: ' + fmt(saldoBanco()) + '.' + (pf ? ' Tienes ' + pf + ' fijo(s) pendientes este mes.' : ' Todo al día ✨'), '🤖');
     } else {
       $('#dots').classList.add('shake');
       toast('PIN incorrecto');
@@ -589,7 +621,7 @@ function tecla(k) {
 function bloquear() {
   bloqueada = true; pinBuf = '';
   pintarDots();
-  cerrarDrawer(); cerrarSheet();
+  cerrarSheet();
   $('#lock').classList.remove('hide');
 }
 function montarKeypad() {
@@ -894,6 +926,7 @@ function accion(a, ds) {
     case 'aplicar-fijos': aplicarFijos(); break;
     case 'chat-clear': D.asistente = []; guardar(); render(); break;
     case 'pin-abrir': sheetPin(); break;
+    case 'bloquear-app': bloquear(); break;
 
     case 'pin-save': {
       const actual = $('#f_pa').value.trim(), nuevo = $('#f_pnv').value.trim(), rep = $('#f_pr').value.trim();
@@ -901,7 +934,8 @@ function accion(a, ds) {
       if (!/^\d{6}$/.test(nuevo)) return toast('El nuevo PIN debe tener 6 dígitos');
       if (nuevo !== rep) return toast('Los PIN nuevos no coinciden');
       D.perfil.pin = nuevo;
-      guardar(); cerrarSheet(); toast('✓ PIN actualizado');
+      guardar(); cerrarSheet();
+      asistir('PIN cambiado 🔐 Guárdalo bien, ' + nombre() + ' — sin él no entras.', '🔐');
       break;
     }
 
@@ -940,7 +974,8 @@ function accion(a, ds) {
       sincronizarVinculo(m, +monto.toFixed(2), fecha, nota);
       m.monto = +monto.toFixed(2); m.fecha = fecha; m.nota = nota;
       m.catId = $('#f_cat').value; m.subId = $('#f_sub').value;
-      guardar(); cerrarSheet(); render(); toast('✓ Movimiento corregido');
+      guardar(); cerrarSheet(); render();
+      asistir(pick(['¡Listo, ' + nombre() + '!', 'Corregido ✅', 'Hecho 👌']) + ' El movimiento quedó en ' + fmt(m.monto) + (m.deudaId ? ' y ajusté la deuda vinculada.' : '.'), '✏️');
       break;
     }
     case 'mov-del': {
@@ -950,20 +985,20 @@ function accion(a, ds) {
       pedirConfirm('Se eliminará este movimiento.' + extra, () => {
         quitarVinculo(m);
         D.movimientos = D.movimientos.filter(x => x.id !== ds.id);
-        guardar(); render(); toast('Movimiento eliminado');
+        guardar(); render(); asistir('Eliminé ese movimiento 🗑️ Tu saldo en Bancos: ' + fmt(saldoBanco()) + '.', '✏️');
       });
       break;
     }
     case 'borrar-mes':
       pedirConfirm('Se borrarán todos los movimientos de ' + nombreMes(mes) + '. Tus deudas NO se modifican.', () => {
         D.movimientos = D.movimientos.filter(m => !m.fecha.startsWith(mes));
-        guardar(); render(); toast('Movimientos de ' + nombreMes(mes).split(' ')[0] + ' borrados');
+        guardar(); render(); asistir('Borré todos los movimientos de ' + nombreMes(mes).split(' ')[0] + ' 🧹 Tus deudas quedaron intactas.', '🧹');
       });
       break;
     case 'borrar-historial':
       pedirConfirm('Se borrará TODO el historial de movimientos de todos los meses. Tus deudas, roles y fijos NO se modifican.', () => {
         D.movimientos = [];
-        guardar(); render(); toast('Historial borrado');
+        guardar(); render(); asistir('Borré todo tu historial de movimientos 🧹 Deudas, roles y fijos siguen intactos.', '🧹');
       });
       break;
 
@@ -984,6 +1019,7 @@ function accion(a, ds) {
       if (!(monto > 0)) return toast('Ingresa un monto válido');
       (ds.tipo === 'ingreso' ? rol.ingresos : rol.descuentos).push({ id: uid(), nombre, monto: +monto.toFixed(2) });
       guardar(); cerrarSheet(); render();
+      asistir((ds.tipo === 'ingreso' ? 'Sumé ' : 'Anoté el descuento ') + nombre + ' de ' + fmt(monto) + ' a tu rol. Líquido: ' + fmt(liquidoRol(D.roles[mes])) + '.', '📄');
       break;
     }
     case 'rol-iess': {
@@ -992,9 +1028,9 @@ function accion(a, ds) {
       if (!(ti > 0)) return toast('Primero agrega tus ingresos');
       const monto = Math.round(ti * 945 / 100) / 100;
       const ya = rol.descuentos.find(l => l.nombre.toUpperCase().startsWith('IESS'));
-      if (ya) { ya.monto = monto; toast('IESS actualizado: ' + fmt(monto)); }
-      else { rol.descuentos.push({ id: uid(), nombre: 'IESS 9.45%', monto }); toast('IESS agregado: ' + fmt(monto)); }
+      if (ya) { ya.monto = monto; } else { rol.descuentos.push({ id: uid(), nombre: 'IESS 9.45%', monto }); }
       guardar(); render();
+      asistir('Calculé tu IESS: ' + fmt(monto) + ' — el 9.45% de ' + fmt(ti) + '. Igualito a tu rol 😉', '⚡');
       break;
     }
     case 'rol-line-del': {
@@ -1007,6 +1043,7 @@ function accion(a, ds) {
     case 'rol-del':
       pedirConfirm('Se eliminará el rol de ' + nombreMes(mes) + ' con todos sus valores.', () => {
         delete D.roles[mes]; guardar(); render();
+        asistir('Eliminé el rol de ' + nombreMes(mes).split(' ')[0] + ' 📄 Puedes crearlo de nuevo cuando quieras.', '📄');
       });
       break;
 
@@ -1018,8 +1055,8 @@ function accion(a, ds) {
       const cupo = num($('#f_tc').value), usado = Math.max(0, num($('#f_tu').value));
       if (!nombre) return toast('Ponle un nombre a la tarjeta');
       if (!(cupo > 0)) return toast('Ingresa el cupo total');
-      if (deuda) { deuda.nombre = nombre; deuda.cupo = cupo; deuda.usado = usado; toast('✓ Tarjeta actualizada'); }
-      else { D.deudas.push({ id: uid(), tipo: 'tarjeta', nombre, cupo, usado, historial: [] }); toast('✓ Tarjeta guardada'); }
+      if (deuda) { deuda.nombre = nombre; deuda.cupo = cupo; deuda.usado = usado; asistir('Actualicé la tarjeta ' + nombre + ': cupo ' + fmt(cupo) + ', deuda ' + fmt(usado) + '.', '💳'); }
+      else { D.deudas.push({ id: uid(), tipo: 'tarjeta', nombre, cupo, usado, historial: [] }); asistir('Tarjeta ' + nombre + ' registrada 💳 Cupo: ' + fmt(cupo) + '. Anota tus compras desde el módulo Tarjeta.', '💳'); }
       guardar(); cerrarSheet(); render();
       break;
     }
@@ -1068,12 +1105,12 @@ function accion(a, ds) {
       if (!(cuota > 0)) cuota = +(total / meses).toFixed(2);
       if (deuda) {
         deuda.nombre = nombre; deuda.total = total; deuda.meses = meses; deuda.cuota = cuota;
-        toast('✓ Deuda actualizada');
+        asistir('Actualicé la deuda ' + nombre + ': total ' + fmt(total) + ', cuota ' + fmt(cuota) + '.', '🏬');
       } else {
         const yaPagado = num($('#f_pp') ? $('#f_pp').value : 0);
         const pagos = yaPagado > 0 ? [{ id: uid(), monto: +yaPagado.toFixed(2), fecha: hoy(), nota: 'Saldo inicial' }] : [];
         D.deudas.push({ id: uid(), tipo: 'plazo', nombre, total, meses, cuota, pagos });
-        toast('✓ Deuda guardada');
+        asistir('Deuda ' + nombre + ' registrada 🏬 ' + meses + ' cuotas de ' + fmt(cuota) + '. ¡Vamos a liquidarla!', '🏬');
       }
       guardar(); cerrarSheet(); render();
       break;
@@ -1098,7 +1135,7 @@ function accion(a, ds) {
     case 'deuda-del':
       pedirConfirm('Se eliminará esta deuda y su historial (los gastos ya registrados no se borran).', () => {
         D.deudas = D.deudas.filter(d => d.id !== ds.id);
-        guardar(); render(); toast('Deuda eliminada');
+        guardar(); render(); asistir('Eliminé esa deuda y su historial ✅ Los gastos ya registrados no se tocaron.', '🗑️');
       });
       break;
 
@@ -1117,13 +1154,14 @@ function accion(a, ds) {
       };
       const ex = D.fijos.find(f => f.id === ds.id);
       if (ex) Object.assign(ex, dato); else D.fijos.push(Object.assign({ id: uid() }, dato));
-      guardar(); cerrarSheet(); render(); toast('✓ Gasto fijo guardado');
+      guardar(); cerrarSheet(); render();
+      asistir('Fijo ' + dato.nombre + ' guardado: ' + fmt(dato.monto) + ' cada día ' + dato.dia + ' 🔁', '🔁');
       break;
     }
     case 'fijo-del':
       pedirConfirm('Se eliminará este gasto fijo (no borra gastos ya aplicados).', () => {
         D.fijos = D.fijos.filter(f => f.id !== ds.id);
-        guardar(); render(); toast('Fijo eliminado');
+        guardar(); render(); asistir('Quité ese gasto fijo 👌 Ya no lo aplicaré en tus meses.', '🔁');
       });
       break;
 
@@ -1133,7 +1171,8 @@ function accion(a, ds) {
       const nombre = $('#f_cn').value.trim();
       if (!nombre) return toast('Ponle un nombre');
       D.categorias.push({ id: uid(), emoji: $('#f_ce').value.trim() || '🏷️', nombre, subs: [] });
-      guardar(); cerrarSheet(); render(); toast('✓ Categoría creada');
+      guardar(); cerrarSheet(); render();
+      asistir('Categoría nueva lista 🏷️ Ya puedes usarla en tus gastos.', '🏷️');
       break;
     }
     case 'cat-del': {
@@ -1171,14 +1210,14 @@ function accion(a, ds) {
       aEl.href = URL.createObjectURL(blob);
       aEl.download = 'abstergo-' + hoy() + '.json';
       aEl.click();
-      toast('Copia exportada 📦');
+      asistir('Exporté tu copia de seguridad 📦 Guárdala en un lugar seguro.', '💾');
       break;
     }
     case 'importar': $('#fileImport').click(); break;
     case 'borrar-todo':
       pedirConfirm('Se borrará TODO: movimientos, roles, deudas y ajustes.', () => {
         localStorage.removeItem(LS_KEY);
-        D = datosIniciales(); guardar(); render(); toast('Datos reiniciados');
+        D = datosIniciales(); guardar(); render(); asistir('Reinicié Abstergo desde cero 🧹 Cuando quieras, empezamos de nuevo.', '🧹');
       });
       break;
   }
@@ -1190,18 +1229,18 @@ document.addEventListener('click', e => {
   if (k) { tecla(k.dataset.k); return; }
   const el = e.target.closest('[data-a]');
   if (el) { accion(el.dataset.a, el.dataset); return; }
-  const it = e.target.closest('.d-item');
-  if (it) setVista(it.dataset.view);
+  const tb = e.target.closest('.tab');
+  if (tb) { if (tb.dataset.tab === 'mas') sheetMas(); else setVista(tb.dataset.tab); }
 });
 $('#fab').addEventListener('click', sheetMovimiento);
-$('#menuBtn').addEventListener('click', abrirDrawer);
-$('#drawerBk').addEventListener('click', cerrarDrawer);
-$('#lockBtn').addEventListener('click', bloquear);
 $('#monthBtn').addEventListener('click', () => { pickYear = +mes.slice(0, 4); sheetMes(); });
 $('#backdrop').addEventListener('click', cerrarSheet);
 $('#bubble').addEventListener('click', () => { $('#bubble').classList.remove('show'); setVista('asistente'); });
 
 document.addEventListener('change', e => {
+  if (e.target.id === 'p_nombre') asistir('¡Anotado! Desde ahora te llamo ' + nombre() + ' 😄', '⚙️');
+  if (e.target.id === 'p_sueldo') asistir('Actualicé tu sueldo base a ' + fmt(D.perfil.sueldo) + '. Lo usaré al crear tus próximos roles.', '⚙️');
+  if (e.target.id === 'p_saldo')  asistir('Ajusté tu saldo inicial. Tu saldo en Bancos ahora: ' + fmt(saldoBanco()) + '.', '🏦');
   if (e.target.id === 'f_cat') poblarSubs('f_cat', 'f_sub');
   if (e.target.id === 'f_fcat') poblarSubs('f_fcat', 'f_fsub');
   if (e.target.id === 'fileImport') {
@@ -1212,7 +1251,7 @@ document.addEventListener('change', e => {
       try {
         const data = JSON.parse(r.result);
         if (!data.categorias || !data.movimientos) throw 0;
-        D = migrar(data); guardar(); render(); toast('✓ Datos importados');
+        D = migrar(data); guardar(); render(); asistir('¡Datos importados! Bienvenido de vuelta, ' + nombre() + ' ✨', '💾');
       } catch (_) { toast('Archivo no válido'); }
     };
     r.readAsText(file);
@@ -1220,7 +1259,7 @@ document.addEventListener('change', e => {
   }
 });
 document.addEventListener('input', e => {
-  if (e.target.id === 'p_nombre') { D.perfil.nombre = e.target.value; guardar(); $('#hiName').textContent = D.perfil.nombre || 'Hola'; $('#avatar').textContent = (D.perfil.nombre || 'A').trim().charAt(0).toUpperCase(); }
+  if (e.target.id === 'p_nombre') { D.perfil.nombre = e.target.value; guardar(); }
   if (e.target.id === 'p_sueldo') { D.perfil.sueldo = num(e.target.value); guardar(); }
   if (e.target.id === 'p_saldo')  { D.perfil.saldoInicial = num(e.target.value); guardar(); }
 });

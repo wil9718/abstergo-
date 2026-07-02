@@ -32,9 +32,6 @@
 
   <!-- Encabezado -->
   <header class="topbar">
-    <button class="icon-top" id="menuBtn" aria-label="Abrir menú">
-      <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
-    </button>
     <div class="brand">
       <svg class="logo-mark" viewBox="0 0 48 48" aria-hidden="true">
         <path fill-rule="evenodd" d="M24 3 L41 43 H30.8 L24 26.5 L17.2 43 H7 Z M24 12.5 L27.6 21 24 24.6 20.4 21 Z"/>
@@ -55,27 +52,29 @@
     <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
   </button>
 
-  <!-- Menú lateral -->
-  <div class="drawer-backdrop" id="drawerBk"></div>
-  <aside class="drawer" id="drawer">
-    <div class="drawer-head">
-      <div class="avatar" id="avatar">W</div>
-      <div>
-        <p class="hi" id="hiText">Hola</p>
-        <p class="hi-name" id="hiName">Wilmer</p>
-      </div>
-    </div>
-    <nav class="d-nav" id="dnav">
-      <button class="d-item active" data-view="inicio"><span>🏠</span>Inicio</button>
-      <button class="d-item" data-view="gastos"><span>💸</span>Gastos y bancos</button>
-      <button class="d-item" data-view="rol"><span>📄</span>Rol de pago</button>
-      <button class="d-item" data-view="tarjeta"><span>💳</span>Tarjeta de crédito</button>
-      <button class="d-item" data-view="deudas"><span>🏬</span>Deudas a plazos</button>
-      <button class="d-item" data-view="asistente"><span>🤖</span>Asistente</button>
-      <button class="d-item" data-view="config"><span>⚙️</span>Configuración</button>
-    </nav>
-    <button class="d-lock" id="lockBtn">🔒 Bloquear app</button>
-  </aside>
+  <!-- Barra inferior de módulos -->
+  <nav class="tabbar" id="tabbar">
+    <button class="tab active" data-tab="inicio">
+      <svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10"/></svg>
+      Inicio
+    </button>
+    <button class="tab" data-tab="gastos">
+      <svg viewBox="0 0 24 24"><path d="M4 7h13a1 1 0 0 1 1 1v1h2a1 1 0 0 1 1 1v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a1 1 0 0 1 1-1z"/><circle cx="16.5" cy="14" r="1.6"/></svg>
+      Gastos
+    </button>
+    <button class="tab" data-tab="rol">
+      <svg viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6z"/><path d="M9 10h6M9 14h6"/></svg>
+      Rol
+    </button>
+    <button class="tab" data-tab="tarjeta">
+      <svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10.5h18"/></svg>
+      Tarjeta
+    </button>
+    <button class="tab" data-tab="mas">
+      <svg viewBox="0 0 24 24"><circle cx="7" cy="7" r="1.7"/><circle cx="17" cy="7" r="1.7"/><circle cx="7" cy="17" r="1.7"/><circle cx="17" cy="17" r="1.7"/></svg>
+      Más
+    </button>
+  </nav>
 
   <!-- Hoja modal (formularios) -->
   <div class="sheet-backdrop" id="backdrop"></div>

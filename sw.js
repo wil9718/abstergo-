@@ -1,5 +1,5 @@
 /* Abstergo · Service Worker — modo offline */
-const CACHE = 'abstergo-cache-v1';
+const CACHE = 'abstergo-cache-v2';
 const ASSETS = [
   './',
   './index.html',
